@@ -385,9 +385,6 @@ def createPSF(stars , mask_radius_arcsec , pixscale , output_path , psf_name , c
     Creates a PSF and saves it in `output_path` location. Returns the final PSF as
     np.array object.
 
-    TODO:
-    - Add header information to PSF (pixel scale, number of stars, etc)
-    - Add a name to the PSF
     '''
 
     ## First shift the stars to center them correctly in the 
@@ -412,8 +409,10 @@ def createPSF(stars , mask_radius_arcsec , pixscale , output_path , psf_name , c
     ## Normalize to 1
     PSF = PSF / np.nansum(PSF) # normalize
 
-    ## Save the PSF
+    ## Add some keywords to the header and write PSF to file.
     hdu0 = fits.PrimaryHDU(PSF)
+    hdu0.header["NSTARS"] = int(len(stars))
+    hdu0.header["PIXSCALE"] = pixscale
     hdul = fits.HDUList([hdu0])
     hdul.writeto(os.path.join(output_path , psf_name) , overwrite=True)
 
