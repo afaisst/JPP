@@ -156,8 +156,6 @@ def runsextractor(imgpath , hduextnbr, call, def_paths, def_pars):
 
     TODO:
     -----
-    - Add more of the default paths in the command line (for conf, par, filter, etc).
-      Currently only default.conf.
     - Add default parameter set for threshold, etc
     - Automate parameters, so it cycles through and adds the keys of the def_pars dictionary
     - Run in bins in parallel for large image files?
@@ -198,7 +196,7 @@ def runsextractor(imgpath , hduextnbr, call, def_paths, def_pars):
             }
     )
 
-def select_stars_constant(cat , mag_range_fit , re_range_percent, output_path , MAKEPLOT):
+def select_stars_constant(cat , mag_range_fit , re_range_percent, lam, pixscale, output_path , MAKEPLOT):
     '''
     Selects stars from a SExtractor catalog according to a perfectly
     horizontal stellar locus. This is a VERY SIMPLE extraction method.
@@ -214,20 +212,51 @@ def select_stars_constant(cat , mag_range_fit , re_range_percent, output_path , 
         a list of bright and faint magnitude range to extract stars. Example: [20,26]
     - re_range_percent: `list, float`
         a list with the lower and upper size limit in percent. Example [20,20] for rmed +/- 0.2*rmet
+    - lam: `float`
+        Wavelength of image (used to compute diffraction limited PSF)
+    - pixscale: `float`
+        Pixel scale in arcsec/px
     - output_path: `str`
         Output path for plot (and catalog?)
     - MAKEPLOT: `bool`
         If set to True, creates a plot in the diagnostic directory.
+
+    Output:
+    --------
+    - Returns a catalog of stars.
+    - Makes a plot of MAG_AUTO vs. FLUX_RADIUS if MAKEPLOT = True
+
+    Version:
+    --------
+    v1.0:
+        - Initial version
+    v1.1:
+        - Improved selection of stars. Because JWST is diffraction limited, we can use that information
+        to improve the star selection. The 2*re_range_percent is now around a diffraction limited PSF.
     '''
+
+    ## Compute diffraction limited PSF FWHM. Note that JWST is basically
+    # diffraction limited. See here:
+    # - https://jwst-docs.stsci.edu/jwst-near-infrared-camera/nircam-performance/nircam-point-spread-functions
+    # - https://jwst-docs.stsci.edu/jwst-mid-infrared-instrument/miri-performance/miri-point-spread-functions
+    # Note that in theory we also have to take into account the pixel size. However,
+    # usually the pixel size is comparable or smaller than the JWST PSF size (=1).
+    psf_fwhm_guess = get_diffraction_limit_psf_fwhm(lam = lam)
+    fwhm_to_re = 0.5 # For a Gaussian, Re = FWHM*0.5 (for King profile it's 0.7)
+    psf_re_total_pixel = np.sqrt( (psf_fwhm_guess/pixscale * fwhm_to_re)**2 + (1)**2 )
+    print("RE SELECTION (px):" , psf_re_total_pixel.value)
 
     ## get data
     X = cat["MAG_AUTO"]
     Y = cat["FLUX_RADIUS"]
 
-    ## Do initial selection
-    sel_stars1 =  np.where( (cat["CLASS_STAR"] > 0.8) 
+    ## Do initial selection. This includes candidate stars that are within
+    # a range from a diffraction limited PSF.
+    sel_stars1 =  np.where( (cat["CLASS_STAR"] > 0.9) 
                     & (cat["MAG_AUTO"] > mag_range_fit[0])
                     & (cat["MAG_AUTO"] < mag_range_fit[1])
+                    & (cat["FLUX_RADIUS"] >= (psf_re_total_pixel.value - 2*re_range_percent[0]/100*psf_re_total_pixel.value))
+                    & (cat["FLUX_RADIUS"] <= (psf_re_total_pixel.value + 2*re_range_percent[0]/100*psf_re_total_pixel.value))
                     )[0]
     Xstars1 = X[sel_stars1]
     Ystars1 = Y[sel_stars1]
@@ -262,7 +291,9 @@ def select_stars_constant(cat , mag_range_fit , re_range_percent, output_path , 
         ax1.plot(X , Y , "o" , markersize=2 , color="lightgray" , alpha=0.5 , label="All detections")
         ax1.plot(X[sel_stars1] , Y[sel_stars1] , "o" , markersize=2 , color="gray" , alpha=0.8 , label="Candidate Stars")
         ax1.plot(X[sel_stars2] , Y[sel_stars2] , "x" , markersize=3 , color="red" , alpha=1 , label="Final Selection")
+        ax1.axhline(y = psf_re_total_pixel , linewidth=1 , linestyle="--" , color="black")
 
+        ax1.grid(linestyle=":",color="gray",linewidth=0.5)
         ax1.legend()
         ax1.set_yscale("log")
         ax1.set_xlabel("Magnitude (AB)")
@@ -412,7 +443,8 @@ def createPSF(stars , mask_radius_arcsec , pixscale , output_path , psf_name , c
     ## Add some keywords to the header and write PSF to file.
     hdu0 = fits.PrimaryHDU(PSF)
     hdu0.header["NSTARS"] = int(len(stars))
-    hdu0.header["PIXSCALE"] = pixscale
+    hdu0.header["PIXSCALE"] = round( pixscale ,3)
+    hdu0.header["SIZE_AS"] = round( PSF.shape[0] * pixscale ,1)
     hdul = fits.HDUList([hdu0])
     hdul.writeto(os.path.join(output_path , psf_name) , overwrite=True)
 
@@ -530,8 +562,10 @@ def jpp(image_pars , general_paths , sextractor_pars , starselection_pars , psf_
     if "STARSELECT" in run_list:
         scat_stars = select_stars_constant(cat=scat, mag_range_fit=starselection_pars["mag_range_fit"],
             re_range_percent=starselection_pars["re_range_percent"] ,
+            lam = image_pars["lam"],
+            pixscale = image_pars["pixscale"],
             output_path = general_paths["main_output"],
-            MAKEPLOT=starselection_pars["makeplot"]
+            MAKEPLOT = starselection_pars["makeplot"]
         )
         print("{} Stars found!".format(len(scat_stars)))
     else:
