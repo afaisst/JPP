@@ -62,13 +62,14 @@ starselection_pars = {
 }
 
 ## Cutout and stacking
-cutout_pars = {
+psf_pars = {
     "cutout_size_arcsec":1*u.arcsec,
     "mask_radius_arcsec":0.2*u.arcsec,
     "cut_pix": 2,
+    "psf_name": None,
     "makeplot":True
 }
 
 
 ## RUN:
-results = jpp.jpp(image_pars , general_paths , sextractor_pars , starselection_pars , cutout_pars , run_list)
+results = jpp.jpp(image_pars , general_paths , sextractor_pars , starselection_pars , psf_pars , run_list)

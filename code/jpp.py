@@ -33,10 +33,6 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 
-## Style sheet
-plt.style.use('main.mplstyle')
-def_cols = plt.rcParams['axes.prop_cycle'].by_key()['color']
-
 ### DEFINITIONS #####
 
 def get_diffraction_limit_psf_fwhm(lam):
@@ -177,12 +173,15 @@ def runsextractor(imgpath , hduextnbr, call, def_paths, def_pars):
     sex_cat_output_path = os.path.join(def_paths["output"] , sex_cat_output_name)
 
 
-    cmd = "{} {}[{}] -c {} -CATALOG_NAME {} -DETECT_THRESH {} -MAG_ZEROPOINT {} -PIXEL_SCALE {} -SEEING_FWHM {}".format(
+    cmd = "{} {}[{}] -c {} -CATALOG_NAME {}  -PARAMETERS_NAME {} -FILTER_NAME {} -STARNNW_NAME {}  -DETECT_THRESH {} -MAG_ZEROPOINT {} -PIXEL_SCALE {} -SEEING_FWHM {}".format(
         call,
         imgpath,
         hduextnbr,
         os.path.join(def_paths["input"] , "default.conf"),
         sex_cat_output_path,
+        os.path.join(def_paths["input"] , "sex.par"),
+        os.path.join(def_paths["input"] , "g2.8.conv"),
+        os.path.join(def_paths["input"] , "default.nnw"),
         def_pars["DETECT_THRESH"],
         def_pars["MAG_ZEROPOINT"],
         def_pars["PIXEL_SCALE"],
@@ -443,7 +442,7 @@ def createPSF(stars , mask_radius_arcsec , pixscale , output_path , psf_name , c
 
 ############# MAIN FUNCTION #################
 
-def jpp(image_pars , general_paths , sextractor_pars , starselection_pars , cutout_pars , run_list):
+def jpp(image_pars , general_paths , sextractor_pars , starselection_pars , psf_pars , run_list):
     '''
     Creates a PSF from a given image file.
 
@@ -469,11 +468,13 @@ def jpp(image_pars , general_paths , sextractor_pars , starselection_pars , cuto
             * mag_range_fit: list of min/max magnitude for fitting stellar locus, e.g., [20,23]
             * re_range_percent: list of range for star selection in percent from medium size, e.g., [10,10]
             * makeplot: if True, creates a plot of selected stars on MAG_AUTO vs. FLUX_RADIUS diagram
-    - cutout_pars: `dictionary`
+    - psf_pars: `dictionary`
         Parameters for creating cutouts and stacking
             * cutout_size_arcsec: Angular size of cutout in ARCSECONDS
             * mask_radius_arcsec: Radius of mask applied to calculated the center of stars for centering in ARCSEC
             * cut_pix: Margin in PIXELS to cut off from final PSF (removes dark border due to shifting of stars)
+            * psf_name: Set the name of the PSF (not path, just name). If "None", then the default PSF name is adopted
+                        which is the image_name.replace(".fits","_psf.fits")
             * makeplot: if True, create plot of final PSF
     - run_list: `str list`
         List of commands to run. Full list: ["SEXTRACTOR","STARSELECT","CREATEPSF"]
@@ -550,7 +551,10 @@ def jpp(image_pars , general_paths , sextractor_pars , starselection_pars , cuto
     ## Create PSF ======================
 
     # PSF name
-    general_paths["psf_name"] = image_pars["imgpath"].split("/")[-1].replace(".fits","_psf.fits")
+    if psf_pars["psf_name"] == None:
+        general_paths["psf_name"] = image_pars["imgpath"].split("/")[-1].replace(".fits","_psf.fits")
+    else:
+        general_paths["psf_name"] = psf_pars["psf_name"]
 
     if "CREATEPSF" in run_list:
 
@@ -558,19 +562,19 @@ def jpp(image_pars , general_paths , sextractor_pars , starselection_pars , cuto
         STARS = StarsCutout( cat = scat_stars,
                             imgpath = image_pars["imgpath"],
                             hduext = image_pars["hduext"],
-                            cutout_size_arcsec = cutout_pars["cutout_size_arcsec"],
+                            cutout_size_arcsec = psf_pars["cutout_size_arcsec"],
                             ra_name = "ALPHA_J2000_new",
                             dec_name = "DELTA_J2000_new"
                             )
 
         ## Create PSF ================
         PSF = createPSF( stars = STARS,
-                        mask_radius_arcsec = cutout_pars["mask_radius_arcsec"],
+                        mask_radius_arcsec = psf_pars["mask_radius_arcsec"],
                         pixscale = image_pars["pixscale"],
                         output_path = general_paths["main_output"],
                         psf_name = general_paths["psf_name"],
-                        cut_pix = cutout_pars["cut_pix"],
-                        MAKEPLOT = cutout_pars["makeplot"]
+                        cut_pix = psf_pars["cut_pix"],
+                        MAKEPLOT = psf_pars["makeplot"]
                         )
 
     t2 = time.time()
