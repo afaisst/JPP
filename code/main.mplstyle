@@ -1,0 +1,27 @@
+### Classic matplotlib plotting style as of v1.5
+
+font.size : 12
+
+axes.labelpad : 10
+xtick.major.pad : 7
+ytick.major.pad : 7
+xtick.minor.visible : True
+ytick.minor.visible : True
+xtick.minor.top : True
+xtick.minor.bottom : True
+ytick.minor.left : True
+ytick.minor.right : True
+xtick.major.size : 5
+ytick.major.size : 5
+xtick.minor.size : 3
+ytick.minor.size : 3
+xtick.direction : in
+ytick.direction : in
+xtick.top : True
+ytick.right : True
+
+hatch.linewidth : 1
+
+font.family : serif
+
+def_cols = plt.rcParams['axes.prop_cycle'].by_key()['color']
