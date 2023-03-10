@@ -293,6 +293,12 @@ def select_stars_constant(cat , mag_range_fit , re_range_percent, lam, pixscale,
         ax1.plot(X[sel_stars2] , Y[sel_stars2] , "x" , markersize=3 , color="red" , alpha=1 , label="Final Selection")
         ax1.axhline(y = psf_re_total_pixel , linewidth=1 , linestyle="--" , color="black")
 
+        # in case the axes limit goes crazy, limit it here.
+        if ax1.get_xlim()[1] > 31:
+            ax1.set_xlim( (ax1.get_xlim()[0] , 31) )
+        if ax1.get_xlim()[0] < 12:
+            ax1.set_xlim( (12 , ax1.get_xlim()[1]) )
+
         ax1.grid(linestyle=":",color="gray",linewidth=0.5)
         ax1.legend()
         ax1.set_yscale("log")
