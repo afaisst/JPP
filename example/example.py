@@ -58,6 +58,7 @@ sextractor_pars = {
 starselection_pars = {
     "mag_range_fit":[20,23], # magnitude range for fitting stellar locus
     "re_range_percent":[10,10], # radius range for star selection in percent from median radius
+    "class_star_limit":0.8, # CLASS_STAR limit for star selection
     "makeplot":True # make figure
 }
 

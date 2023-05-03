@@ -196,7 +196,7 @@ def runsextractor(imgpath , hduextnbr, call, def_paths, def_pars):
             }
     )
 
-def select_stars_constant(cat , mag_range_fit , re_range_percent, lam, pixscale, output_path , MAKEPLOT):
+def select_stars_constant(cat , mag_range_fit , re_range_percent, class_star_limit, lam, pixscale, output_path , MAKEPLOT):
     '''
     Selects stars from a SExtractor catalog according to a perfectly
     horizontal stellar locus. This is a VERY SIMPLE extraction method.
@@ -212,6 +212,8 @@ def select_stars_constant(cat , mag_range_fit , re_range_percent, lam, pixscale,
         a list of bright and faint magnitude range to extract stars. Example: [20,26]
     - re_range_percent: `list, float`
         a list with the lower and upper size limit in percent. Example [20,20] for rmed +/- 0.2*rmet
+    - class_star_limit: `float`
+        The limit of CLASS_STAR parameter (e.g., 0.8 or 0.9 are good choices).
     - lam: `float`
         Wavelength of image (used to compute diffraction limited PSF)
     - pixscale: `float`
@@ -252,7 +254,7 @@ def select_stars_constant(cat , mag_range_fit , re_range_percent, lam, pixscale,
 
     ## Do initial selection. This includes candidate stars that are within
     # a range from a diffraction limited PSF.
-    sel_stars1 =  np.where( (cat["CLASS_STAR"] > 0.9) 
+    sel_stars1 =  np.where( (cat["CLASS_STAR"] > class_star_limit) 
                     & (cat["MAG_AUTO"] > mag_range_fit[0])
                     & (cat["MAG_AUTO"] < mag_range_fit[1])
                     & (cat["FLUX_RADIUS"] >= (psf_re_total_pixel.value - 2*re_range_percent[0]/100*psf_re_total_pixel.value))
@@ -268,7 +270,7 @@ def select_stars_constant(cat , mag_range_fit , re_range_percent, lam, pixscale,
     re_med = np.median(Ystars1)
 
     ## Final selection:
-    sel_stars2 = np.where( (cat["CLASS_STAR"] > 0.8) 
+    sel_stars2 = np.where( (cat["CLASS_STAR"] > class_star_limit) 
                     & (cat["MAG_AUTO"] > mag_range_fit[0])
                     & (cat["MAG_AUTO"] < mag_range_fit[1])
                     & (cat["FLUX_RADIUS"] >= (re_med - re_range_percent[0]/100*re_med))
@@ -568,6 +570,7 @@ def jpp(image_pars , general_paths , sextractor_pars , starselection_pars , psf_
     if "STARSELECT" in run_list:
         scat_stars = select_stars_constant(cat=scat, mag_range_fit=starselection_pars["mag_range_fit"],
             re_range_percent=starselection_pars["re_range_percent"] ,
+            class_star_limit = starselection_pars["class_star_limit"],
             lam = image_pars["lam"],
             pixscale = image_pars["pixscale"],
             output_path = general_paths["main_output"],

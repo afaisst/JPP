@@ -23,5 +23,3 @@ ytick.right : True
 hatch.linewidth : 1
 
 font.family : serif
-
-def_cols = plt.rcParams['axes.prop_cycle'].by_key()['color']
